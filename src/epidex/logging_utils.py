@@ -1,0 +1,1 @@
+# append_to_log, append_to_linkbook (small enough to merit its own module rather than living in cli.py)

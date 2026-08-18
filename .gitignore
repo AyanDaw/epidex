@@ -1,0 +1,57 @@
+# =========================
+# Python virtual environment
+# =========================
+.venv/
+venv/
+env/
+ENV/
+
+# =========================
+# Environment / secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Python cache / compiled files
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# =========================
+# Packaging / build output
+# =========================
+build/
+dist/
+*.egg-info/
+
+# =========================
+# PyInstaller
+# =========================
+*.spec.bak
+
+# =========================
+# Logs
+# =========================
+*.log
+log.txt
+
+# =========================
+# IDE / editor files
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+
+# =========================
+# Old Script files
+# =========================
+./tests/Nonte_Fonte_downloader/

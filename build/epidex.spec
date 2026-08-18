@@ -1,0 +1,1 @@
+# PyInstaller spec file (built binary output goes to dist/, not committed)

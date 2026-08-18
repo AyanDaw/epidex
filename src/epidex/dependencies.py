@@ -1,0 +1,1 @@
+# resolve_tool, check_dependencies, auto-install/auto-download logic
