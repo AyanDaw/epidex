@@ -54,11 +54,10 @@ Thumbs.db
 # =========================
 # Old Script files
 # =========================
-./tests/Nonte_Fonte_downloader/
-
+/tests
 
 # =========================
 # bins and builds
 # =========================
-./bin
-./build
+/bin/
+/build/
