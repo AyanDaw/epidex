@@ -1,0 +1,1 @@
+# A way to read logs, Links etc. A inbuilt function
