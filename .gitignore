@@ -66,3 +66,8 @@ Thumbs.db
 # User & App data used by app
 # =========================
 /data/
+
+# =========================
+# Building plan file
+# =========================
+plan.txt

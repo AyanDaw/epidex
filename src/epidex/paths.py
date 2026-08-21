@@ -4,6 +4,36 @@ need any kind of path, will import from here. So keep
 in mind to keep creating paths here.
 Update the lilterals if new Used by app files increases
 """
+"""
+TODO — forward-looking path changes (multi-user support, not yet built):
+
+1. DB_FILE = DATA_PATH / "epidex.db"
+   Add as a static constant once the multi-user database lands. Lives as a
+   sibling to per-user folders inside data/ — NOT nested inside any single
+   user's folder, since it's an index/registry spanning ALL users, not data
+   belonging to one of them.
+
+2. UserName = "User" placeholder → real usernames
+   Currently hardcoded as a single placeholder folder. Once multi-user lands,
+   this stops being a constant — USER_DATA and get_series_season_path() need
+   a `user` parameter too (same pattern already used for series/season),
+   sourced from DB_FILE rather than assumed to be "User" for everyone.
+
+3. get_app_data()'s Literal list → add "series_config.json"
+   This is the derived snapshot of series-identity fields (TMDB_API_KEY,
+   SERIES, SEASON, SERIES_ID) written into each season's folder at time of
+   use. It's a historical cache/record only — never authoritative, never
+   edited directly by EnvManager — so it needs to be a valid target for
+   get_app_data() once EnvManager starts writing it.
+
+4. get_download_dir()'s env_download_dir wiring
+   Function signature is already correctly designed (takes env_download_dir
+   as a plain parameter) — just not yet connected end-to-end. Once
+   EnvManager exists and loads .env's DOWNLOAD_DIR key, cli.py needs to pass
+   that loaded value in here rather than leaving the parameter unfed.
+"""
+
+
 
 import re
 from pathlib import Path
