@@ -44,17 +44,17 @@ def _slugify(name: str) -> str:
 
 
 # USER
-UserName = "User"  # TODO Place Holder,Will be done if User separation added later
+UserName = "User"                                       # TODO Place Holder,Will be done if User separation added later
 
 USER_DATA = DATA_PATH / UserName                        # epidex(root)/data/<UserName>/
 
 
 # SERIES/SEASON path
-def get_series_season_path(series: str, season: int) -> Path:
+def get_series_season_path(series: str, season) -> Path:
     """Return the app-data folder for a specific series+season,"""
     # ~/data/<UserName>/<SeriesFullNameSlug>/S<SeasonNumber>/
     
-    return USER_DATA / _slugify(series) / f"S{season:02d}"
+    return USER_DATA / _slugify(series) / f"S{int(season):02d}"
 
 
 # USER_DOWNLOAD_DIRS
@@ -69,7 +69,7 @@ def get_download_dir(series: str, season, env_download_dir: str | None) -> Path:
 
 
 # APP_DATA_DIRS
-def get_app_data(query: Literal["linkbook.txt", "log_file.txt", "metadata.json"], series: str, season: int) -> Path:
+def get_app_data(query: Literal["linkbook.txt", "log_file.txt", "metadata.json"], series: str, season) -> Path:
     """Return the full path to a specific app-data file (linkbook, log, or metadata cache. Limited Options) for a series+season."""
     
     # ~/<PATH>/linkbook.txt
