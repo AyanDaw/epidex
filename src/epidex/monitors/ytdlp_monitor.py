@@ -3,10 +3,10 @@
 import time
 from pathlib import Path
 
-YTDLP_LOG = Path("ytdlp_output.log")
-FETCH_RUNTIME = Path("fetch_output.log")
-SCRUB_AND_TAG = Path("scrub_output.log")
-STOP_FLAG = Path("STOP_MONITORS")
+
+from epidex.paths import STOP_FLAG
+from epidex.paths import YTDLP_LOG
+
 
 def main():
     print("Watching yt-dlp / mkvmerge / mkvpropedit output...\n")

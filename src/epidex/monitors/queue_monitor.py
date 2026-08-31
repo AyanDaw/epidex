@@ -2,12 +2,12 @@
 
 import json
 import os
-import time
 import subprocess
+import time
 from pathlib import Path
 
-QUEUE_STATUS_FILE = Path("Queuestatus.json")
-STOP_FLAG = Path("STOP_MONITORS")
+from epidex.paths import QUEUE_STATUS_FILE
+from epidex.paths import STOP_FLAG
 
 
 def main():

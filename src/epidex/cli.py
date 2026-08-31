@@ -2,38 +2,117 @@
 
 # Python Module Import
 
-import json
-import math
-import os
-import platform
-import queue
-import random
-import re
-import requests
-import shutil
-import subprocess
-import sys
-import threading
-import time
-from datetime import datetime
-from dotenv import dotenv_values
-from pathlib import Path
-from rich.console import Console
+# import json
+# import math
+# import os
+# import platform
+# import queue
+# import random
+# import re
+# import requests
+# import shutil
+# import subprocess
+# import sys
+# import threading
+# import time
+# from datetime import datetime
+# from dotenv import dotenv_values
+# from pathlib import Path
+# from rich.console import Console
 
 
 # Custom Modules Import
 
-from epidex.dependencies import check_dependencies
-from epidex.episode import Episode
-from epidex.input_panel import InputPanel
-from epidex.queue_manager import QueueManager
-from epidex.tmdb import load_metadata_tmdb
+from epidex import paths
+from epidex.env_manager import EnvManager
+# from epidex.dependencies import check_dependencies
+# from epidex.episode import Episode
+# from epidex.input_panel import InputPanel
+# from epidex.queue_manager import QueueManager
+# from epidex.tmdb import load_metadata_tmdb
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Constants
 
-from epidex.paths import LINKBOOK
-from epidex.paths import LOG_FILE
-
+config = EnvManager().load()   # returns dict: SERIES, SEASON, DOWNLOAD_DIR, ...
+series_dir = paths.get_series_season_path(config["SERIES"], config["SEASON"])
+download_dir = paths.get_download_dir(config["SERIES"], config["SEASON"], config.get("DOWNLOAD_DIR"))
 
 TYPE = "tv"
 
