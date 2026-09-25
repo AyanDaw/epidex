@@ -65,6 +65,9 @@ from dotenv import dotenv_values, set_key
 
 from epidex import paths
 
+# TODO Separate Series and App variables in .show.env and .app.env
+# TODO Backup system will change too
+# Its a internal module change issue so it should not ripple through other modules
 
 @dataclass
 class SeriesConfig:
@@ -81,6 +84,7 @@ class SeriesConfig:
     tmdb_api_key: str
     download_dir: str | None
     yt_dlp_path: str | None
+    ffmpeg_path: str | None
     deno_path: str | None
     mkvmerge_path: str | None
     mkvpropedit_path: str | None
@@ -310,7 +314,7 @@ class EnvManager:
             "SERIES_ID": series_id,
             "TMDB_API_KEY": fresh["TMDB_API_KEY"] if keep not in ("y", "") else data.get("TMDB_API_KEY", ""),
             "DOWNLOAD_DIR": data.get("DOWNLOAD_DIR", ""),    # user preference, NOT machine-tied. carried over regardless
-            "YT_DLP_PATH": "", "DENO_PATH": "", "MKVMERGE_PATH": "", "MKVPROPEDIT_PATH": "",  # machine-tied, reset, unverified for this OS
+            "YT_DLP_PATH": "", "FFMPEG_PATH": "", "DENO_PATH": "", "MKVMERGE_PATH": "", "MKVPROPEDIT_PATH": "",  # machine-tied, reset, unverified for this OS
             "LAST_OS": self.current_os,
         }
         self._write_full(new_data)
@@ -549,6 +553,7 @@ class EnvManager:
             tmdb_api_key=data.get("TMDB_API_KEY", ""),
             download_dir=data.get("DOWNLOAD_DIR") or None,
             yt_dlp_path=data.get("YT_DLP_PATH") or None,
+            ffmpeg_path=data.get("FFMPEG_PATH") or None,
             deno_path=data.get("DENO_PATH") or None,
             mkvmerge_path=data.get("MKVMERGE_PATH") or None,
             mkvpropedit_path=data.get("MKVPROPEDIT_PATH") or None,

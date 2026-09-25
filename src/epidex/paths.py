@@ -35,9 +35,12 @@ TODO — forward-looking path changes (multi-user support, not yet built):
 
 
 
+import platform
 import re
 from pathlib import Path
 from typing import Literal
+
+import platformdirs
 
 # ==============================
 # Static Values
@@ -107,3 +110,12 @@ def get_app_data(query: Literal["linkbook.txt", "log_file.txt", "metadata.json"]
     # ~/<PATH>/metadata.json
     
     return get_series_season_path(series=series, season=season) / query
+
+# TOOLS
+# bundled ffmpeg. Linux uses ~/.local/bin because it's conventionally
+# already on PATH; Windows has no such always-on-PATH user folder, so it
+# gets a fixed known location instead.
+if platform.system() == "Windows":
+    TOOLS_DIR = Path(platformdirs.user_data_dir("epidex")) / "tools"
+else:
+    TOOLS_DIR = Path.home() / ".local" / "bin"
