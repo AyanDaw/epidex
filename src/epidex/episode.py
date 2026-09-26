@@ -1,5 +1,13 @@
 """Episode class (download, fetch_runtime, scrub_and_tag, build_filename)"""
 
+import json
+import math
+import os
+import re
+import subprocess
+from pathlib import Path
+
+
 class Episode:
     def __init__(self, series: str, season: int, epnumber: int, maxeps: str):
         """All variables"""
