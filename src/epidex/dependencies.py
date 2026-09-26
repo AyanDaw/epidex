@@ -40,7 +40,7 @@ from pathlib import Path
 import requests
 
 from epidex import paths
-from epidex.env_manager import SeriesConfig  # only for the type, not the class
+from epidex.env_manager import EnvConfig  # only for the type, not the class
 
 
 @dataclass
@@ -60,7 +60,7 @@ class ToolPaths:
     mkvpropedit: Path | None
 
 
-def check_dependencies(config: SeriesConfig) -> tuple[ToolPaths, dict[str, str]]:
+def check_dependencies(config: EnvConfig) -> tuple[ToolPaths, dict[str, str]]:
     """TLDR: resolve all five tools, report results, change nothing.
 
     Returns (ToolPaths, updates). ToolPaths is always fully built, one

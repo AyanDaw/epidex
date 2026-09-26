@@ -24,7 +24,9 @@
 # Custom Modules Import
 
 from epidex import paths
+from epidex.dependencies import ToolPaths
 from epidex.env_manager import EnvManager
+
 # from epidex.dependencies import check_dependencies
 # from epidex.episode import Episode
 # from epidex.input_panel import InputPanel

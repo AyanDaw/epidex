@@ -93,7 +93,8 @@ def get_series_season_path(series: str, season) -> Path:
 # USER_DOWNLOAD_DIRS
 def get_download_dir(series: str, season, env_download_dir: str | None) -> Path:
     """Return where downloaded episodes should be saved.
-    Uses env_download_dir (from .env's DOWNLOAD_DIR) if set, otherwise default."""
+    Uses env_download_dir (from .env's DOWNLOAD_DIR) if set, otherwise default.
+    Asked by CLI, then channeled to others."""
     # ~/Custom/Path/ if set else ~/Home/Downloads/<seriesName> S<season>/
     
     if env_download_dir:

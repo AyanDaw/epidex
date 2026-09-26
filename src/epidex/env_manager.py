@@ -70,8 +70,10 @@ from epidex import paths
 # Its a internal module change issue so it should not ripple through other modules
 
 @dataclass
-class SeriesConfig:
-    """Immutable snapshot of everything .env holds, handed to cli.py once
+class EnvConfig:
+    """
+    This data gets separated into Series and App through CLI.
+    Immutable snapshot of everything .env holds, handed to cli.py once
     per run. Required project-identity fields (series, season, series_id,
     tmdb_api_key) are always strings/ints because first-run setup forces
     them before a .env can exist at all. Everything else is optional and
@@ -132,7 +134,7 @@ class EnvManager:
     # Public API
     # ==================================================================
 
-    def load(self) -> SeriesConfig:
+    def load(self) -> EnvConfig:
         """Entry point. Ensures a usable, up-to-date .env exists for the
         current OS, then returns it as a SeriesConfig.
 
@@ -542,11 +544,11 @@ class EnvManager:
         for key, value in data.items():
             set_key(str(self.ENV_FILE), key, str(value))
 
-    def _to_config(self, data: dict) -> SeriesConfig:
+    def _to_config(self, data: dict) -> EnvConfig:
         """Convert the final flat dict into a SeriesConfig instance. Pure
         mapping; no prompting, no file I/O, no validation beyond the type
         coercion SEASON needs (str -> int)."""
-        return SeriesConfig(
+        return EnvConfig(
             series=data.get("SERIES", ""),
             series_id=data.get("SERIES_ID", ""),
             season=int(data.get("SEASON", "") or 0),
