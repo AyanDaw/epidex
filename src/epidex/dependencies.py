@@ -1,9 +1,36 @@
-# dependencies.py — no EnvManager import at all
+"""
+Resolves and, when needed, installs the external binaries epidex depends on:
+yt-dlp, ffmpeg, deno, mkvmerge, mkvpropedit.
+
+This module is a pure function boundary. check_dependencies() takes a
+SeriesConfig in and returns (ToolPaths, updates) out, with no file I/O on
+.env and no prints. Nothing here calls sys.exit(); every failure is reported
+through the return values, and it is cli.py's job to decide what the user
+sees and what happens next.
+
+Downloading is a separate, explicit phase. check_dependencies() only checks
+and reports; cli.py calls _downloader() afterward, only for tools it
+decided are missing, only after the user has agreed to it.
+
+Per-tool install strategy (locked, not arbitrary): yt-dlp, ffmpeg, and deno
+are fetched as direct static-binary downloads, because each has a specific
+reason a distro package manager would be worse: yt-dlp's packaged versions
+lag behind the fixes YouTube-breakage requires; the ffmpeg used here is
+yt-dlp's own patched fork, which no package manager carries; deno is not in
+default apt/dnf repos at all. mkvmerge/mkvpropedit go through the system
+package manager instead, because they have real shared-library dependencies
+(Qt, boost) and no portable static build exists for them; the package
+manager is the only correct source there, not a fallback.
+
+macOS is not a supported platform yet. Where a per-tool branch would need
+one, it is left out or commented, not silently handled.
+"""
 
 import platform
 import shutil
 import stat
 import subprocess
+import tarfile
 import tempfile
 import zipfile
 from collections.abc import Callable
@@ -13,29 +40,41 @@ from pathlib import Path
 import requests
 
 from epidex import paths
-from epidex.env_manager import SeriesConfig
-
-# We are not calling the Whole class, Just for type fitting.
-
+from epidex.env_manager import SeriesConfig  # only for the type, not the class
 
 
 @dataclass
 class ToolPaths:
+    """Resolved binary paths for every tool this app needs at runtime.
+
+    A field is None when that tool could not be found or confirmed working
+    anywhere (.env, the managed tools folder, or PATH). cli.py is expected
+    to check for None fields before proceeding with anything that needs
+    that tool.
+    """
+
     yt_dlp: Path | None
     ffmpeg: Path | None
     deno: Path | None
     mkvmerge: Path | None
     mkvpropedit: Path | None
-    # None as some dependencies can not be available too.
 
 
 def check_dependencies(config: SeriesConfig) -> tuple[ToolPaths, dict[str, str]]:
-    """Resolve all four tools. Returns (ToolPaths, updates) where `updates`
-    is {ENV_KEY: resolved_path} for only the tools that weren't already
-    correctly set in .env — i.e. what the caller should persist.
-    downloading done by _downloader() called from cli.py not _resolve()"""
-    updates: dict[str, str] = {} # {ENV_KEY: resolved_path}
-    # Updates gonna update .env file, So and values are always str:str. We need to force convert them to str.
+    """TLDR: resolve all five tools, report results, change nothing.
+
+    Returns (ToolPaths, updates). ToolPaths is always fully built, one
+    field per tool, for immediate runtime use. updates is
+    {ENV_KEY: resolved_path}, containing only the tools whose resolved
+    location differs from what was already in .env; cli.py is expected to
+    hand this to env_manager for persistence. Values in updates are always
+    str, since that is what env_manager and python-dotenv expect.
+
+    This function never prints, never downloads, and never exits. It is
+    safe to call repeatedly, including in a retry loop after a download
+    attempt.
+    """
+    updates: dict[str, str] = {}
     tools_dir = paths.TOOLS_DIR
 
     yt_dlp = _resolve(config.yt_dlp_path, "yt-dlp", tools_dir, updates, "YT_DLP_PATH")
@@ -44,32 +83,58 @@ def check_dependencies(config: SeriesConfig) -> tuple[ToolPaths, dict[str, str]]
     mkvmerge = _resolve(config.mkvmerge_path, "mkvmerge", tools_dir, updates, "MKVMERGE_PATH")
     mkvpropedit = _resolve(config.mkvpropedit_path, "mkvpropedit", tools_dir, updates, "MKVPROPEDIT_PATH")
 
-    # cli will be running here in loop, so after getting this returned cli will check if any dependency is still none 
     return ToolPaths(yt_dlp, ffmpeg, deno, mkvmerge, mkvpropedit), updates
 
 
 def _works(path: Path) -> bool:
-    """Confirms a resolved binary actually runs, via --version."""
+    """TLDR: confirm a candidate binary actually runs, not just exists.
+
+    Runs `<path> --version` and treats a zero exit code as working. A path
+    that exists but is corrupted, wrong-architecture, or half-downloaded
+    will fail this and get rejected by _resolve rather than accepted and
+    only discovered broken later, mid-download or mid-merge.
+    """
     try:
-        result = subprocess.run([str(path), "--version"], capture_output=True, check=False, timeout=10)
+        result = subprocess.run(
+            [str(path), "--version"], capture_output=True, check=False, timeout=10
+        )
         return result.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
         return False
 
 
-def _resolve(configured: str | None, name: str, managed_dir:Path, updates: dict[str, str], env_key_name: str) -> Path | None:
-    """Its work is resolving Paths. It will check if there is already configured path. if not find it.
-     If not there in the machine then it will ask to download permission. User can download  by their self 
-     or let the app manage it.
-     Three-tier lookup: .env -> managed tools dir -> PATH. Each candidate
-    is confirmed with --version before being accepted. Silent — no
-    printing, no downloading; caller decides what to say and do."""
-    
-    candidates: list[Path] = [] # Joto available options ache ete store hobe one by one porechecking hobe, first correct ta return jabe.
+def _resolve(
+    configured: str | None,
+    name: str,
+    managed_dir: Path,
+    updates: dict[str, str],
+    env_key_name: str,
+) -> Path | None:
+
+    """TLDR: find one tool by checking .env, then the managed tools folder,
+    then PATH, accepting only a candidate that actually runs.
+
+    Order of preference: an explicit path already saved in .env, then the
+    app's own managed tools folder (paths.TOOLS_DIR), then whatever the OS
+    finds on PATH. Every candidate is confirmed with _works() before being
+    accepted, so a stale or broken .env entry correctly falls through to
+    the next tier instead of being trusted.
+
+    If the winning candidate's path differs from what was configured,
+    its str form is recorded in updates under env_key_name, so the caller
+    can persist the correction. Returns None if nothing usable was found
+    at any tier.
+
+    This function is silent by design: no printing, no downloading. It
+    only reports what it found.
+    """
+    candidates: list[Path] = []
     if configured:
         candidates.append(Path(configured))
+
     binary_name = f"{name}.exe" if platform.system() == "Windows" else name
     candidates.append(managed_dir / binary_name)
+
     found_on_path = shutil.which(name)
     if found_on_path:
         candidates.append(Path(found_on_path))
@@ -80,15 +145,21 @@ def _resolve(configured: str | None, name: str, managed_dir:Path, updates: dict[
             if resolved != configured:
                 updates[env_key_name] = resolved
             return candidate
+
     return None
 
 
 def _downloader(name: str, target_dir: Path) -> bool:
-    """Its work only to downloading not resolving.
-    Can be used as downloading one dependencies or update all through CLI
-    Attempt to install one missing tool. Returns success/failure only —
-    caller re-resolves via check_dependencies() to find the actual path."""
+    """TLDR: attempt to install one missing tool by its canonical name.
 
+    Returns only success or failure. It deliberately does not return a
+    Path: the caller is expected to call check_dependencies() again
+    afterward and let _resolve() find the actual location, whether that is
+    inside target_dir (yt-dlp, ffmpeg, deno) or wherever a package manager
+    chose to put it (mkvmerge, mkvpropedit). This keeps every entry in the
+    dispatch table below the same shape, regardless of how differently
+    each underlying installer behaves.
+    """
     downloaders: dict[str, Callable[[Path], bool]] = {
     # dict_name: typehint > type[key type, value type]
     
@@ -100,30 +171,37 @@ def _downloader(name: str, target_dir: Path) -> bool:
         "ffmpeg" : lambda d: _download_ffmpeg(d) is not None, # Like its likely to return the bool, is not None makes
         "deno": lambda d: _download_deno(d) is not None,      # it strictly bool.
         "mkvmerge": lambda d: _download_mkvtoolnix(),
-        "mkvpropedit" : lambda d: _download_mkvtoolnix(),
+        "mkvpropedit": lambda d: _download_mkvtoolnix(),
     }
     downloader = downloaders.get(name)
     return downloader(target_dir) if downloader else False
 
 
 def _make_executable(path: Path) -> None:
-    """chmod +x — no-op requirement on Windows, required on Linux/Mac."""
+    """TLDR: chmod +x a downloaded binary. No-op on Windows, required on
+    Linux (and, if ever supported, macOS), since a freshly downloaded file
+    has no execute bit set yet.
+    """
     if platform.system() != "Windows":
         path.chmod(path.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 
 
-# For every downloader check if available else skip. Give a message for already availibility
 def _download_yt_dlp(target_dir: Path) -> Path | None:
-    """yt-dlp ships a single static binary with a permanent 'latest' URL per OS"""
-    is_windows = platform.system() == 'Windows'
+    """TLDR: download the current yt-dlp release binary for this OS.
+
+    yt-dlp ships a single static, self-contained binary per OS, and
+    publishes it at a permanent "latest" URL, so no version lookup or
+    archive extraction is needed here, unlike ffmpeg and deno below.
+    """
+    is_windows = platform.system() == "Windows"
     asset_name = "yt-dlp.exe" if is_windows else "yt-dlp"
     url = f"https://github.com/yt-dlp/yt-dlp/releases/latest/download/{asset_name}"
 
-    target_dir.mkdir(parents= True, exist_ok= True)
-    destination_dir = target_dir/asset_name
+    target_dir.mkdir(parents=True, exist_ok=True)
+    destination_dir = target_dir / asset_name
 
     try:
-        response = requests.get(url= url, timeout=30, stream= True) 
+        response = requests.get(url=url, timeout=30, stream=True) 
         # Instead of downloading all the data at once it allows to download in packages
         response.raise_for_status() # It Raises a error when server takes too long to response
     except requests.exceptions.RequestException as e:
@@ -140,20 +218,32 @@ def _download_yt_dlp(target_dir: Path) -> Path | None:
     return destination_dir
 
 
+# Static, patched ffmpeg builds maintained by the yt-dlp project itself,
+# not a generic ffmpeg distribution. These carry fixes specific to sites
+# yt-dlp downloads from and are the build yt-dlp's own docs recommend.
+# There are currently no macOS builds published upstream, so Darwin has no
+# entry here; _download_ffmpeg reports that clearly instead of guessing.
+
 _FFMPEG_ASSETS = {
     "Windows": "https://github.com/yt-dlp/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip",
-    "Linux": "https://github.com/yt-dlp/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-linux64-gpl.tar.xz"
+    "Linux": "https://github.com/yt-dlp/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-linux64-gpl.tar.xz",
 }
 
+
 def _download_ffmpeg(target_dir: Path) -> Path | None:
-    """Static ffmpeg builds have no shared-library dependencies (unlike
-    mkvtoolnix), so — like yt-dlp/deno — a direct download is the correct
-    portable path here, not a package-manager fallback. There are currently
-    no MacOS builds."""
+    """TLDR: download and extract yt-dlp's patched ffmpeg build for this OS.
+
+    Unlike yt-dlp, ffmpeg ships as an archive (zip on Windows, tar.xz on
+    Linux) with the binary nested a few folders deep, alongside ffprobe and
+    other files we do not need. Only the single ffmpeg binary is pulled
+    out and placed directly in target_dir; the now-empty parent folder
+    left behind by extraction is removed afterward so repeated runs do not
+    accumulate clutter.
+    """
     system = platform.system()
     url = _FFMPEG_ASSETS.get(system)
     if url is None:
-        print(f"ERROR: no known static ffmpeg build for {system} — install manually.")
+        print(f"ERROR: no known static ffmpeg build for {system}. Install manually.")
         return None
 
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -175,16 +265,17 @@ def _download_ffmpeg(target_dir: Path) -> Path | None:
     try:
         if system == "Windows":
             with zipfile.ZipFile(tmp_path) as zf:
-                # gyan.dev zips nest the binary in a versioned bin/ subfolder
+                # yt-dlp/FFmpeg-Builds zips nest the binary in a versioned bin/ subfolder.
                 member = next(n for n in zf.namelist() if n.endswith(binary_name))
                 zf.extract(member, target_dir)
                 (target_dir / member).rename(target_dir / binary_name)
+                shutil.rmtree(target_dir / member.split("/")[0], ignore_errors=True)
         else:
-            import tarfile
             with tarfile.open(tmp_path) as tf:
                 member = next(n for n in tf.getnames() if n.endswith(f"/{binary_name}"))
                 tf.extract(member, target_dir)
                 (target_dir / member).rename(target_dir / binary_name)
+                shutil.rmtree(target_dir / member.split("/")[0], ignore_errors=True)
     except (StopIteration, OSError) as e:
         print(f"ERROR: couldn't extract ffmpeg from archive: {e}")
         return None
@@ -205,9 +296,15 @@ _DENO_ASSETS = {
 
 
 def _download_deno(target_dir: Path) -> Path | None:
-    """deno ships as a per-platform zip containing one binary."""
-    system = platform.system() # Detecting system
-    machine = platform.machine().lower() # Detecting machine, amd64_86 etc. 
+    """TLDR: download and extract the current deno release for this OS
+    and CPU architecture.
+
+    Deno also ships as a per-platform zip with a single binary inside, so
+    the asset name has to account for both OS and CPU architecture, unlike
+    yt-dlp which only varies by OS.
+    """
+    system = platform.system()
+    machine = platform.machine().lower()
     if machine in ("amd64", "x86_64"):
         # because amd64 and x86_64 are the same thing, and Windows and other calls it iter System
         machine = "amd64" if system == "Windows" else "x86_64"
@@ -221,10 +318,10 @@ def _download_deno(target_dir: Path) -> Path | None:
     target_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        response = requests.get(url, timeout= 30, stream=True)
+        response = requests.get(url, timeout=30, stream=True)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
-        print(f"ERROR: Failed to download deno: {e}")
+        print(f"ERROR: failed to download deno: {e}")
         return None
 
     with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
@@ -249,11 +346,16 @@ def _download_deno(target_dir: Path) -> Path | None:
 
 
 def _run_privileged(cmd: list[str]) -> bool:
-    """Run an install command that may need sudo, letting the OS prompt for
-    the password directly (never captured by us). Always drops the sudo
-    credential cache afterward, success or failure, so the NEXT privileged
-    call — even for a different tool a second later — prompts fresh instead
-    of silently reusing this one."""
+    """TLDR: run an install command that may need elevated privileges,
+    letting the OS handle the prompt itself.
+
+    stdin/stdout are never captured, so if cmd starts with sudo, the
+    terminal sudo is actually attached to prompts for the password the
+    normal way; this function never sees or touches it. Regardless of
+    success or failure, the sudo credential cache is dropped afterward
+    (sudo -k), so back-to-back installs of different tools each prompt
+    fresh instead of silently reusing one earlier approval.
+    """
     try:
         result = subprocess.run(cmd, check=False) # no capture_output - inherits our TTY
         success = result.returncode == 0
@@ -274,38 +376,49 @@ _LINUX_PACKAGE_MANAGERS = [
 
 
 def _download_mkvtoolnix() -> bool:
-    """No portable cross-distro binary exists for mkvtoolnix — shared library
-    dependencies (Qt, boost) mean the system package manager IS the correct
-    distribution path here, not a fallback. mkvmerge + mkvpropedit always
-    install together as one package."""
-    import shutil as _shutil
+    """TLDR: install mkvmerge and mkvpropedit through the system's own
+    package manager, since no portable static build exists for either.
+
+    Unlike yt-dlp, ffmpeg, and deno, mkvtoolnix has real shared-library
+    dependencies (Qt, boost), so a dropped-in binary would not reliably
+    run across different systems. The package manager is the correct
+    source here, not a fallback, and mkvmerge/mkvpropedit always install
+    together as one package, so this single function satisfies both
+    dependency entries.
+
+    Windows tries winget first, since it can be invoked the same way as
+    any other subprocess and lets Windows show its own UAC prompt. Linux
+    tries apt, dnf, pacman, and zypper in turn, using whichever is found
+    first. Neither path takes a target_dir; the OS decides where the
+    installed files live.
+    """
     system = platform.system()
 
     if system == "Windows":
-        if _shutil.which("winget"):
-            print("Installing MKVToolNix via winget — approve the prompt if one appears.")
+        if shutil.which("winget"):
+            print("Installing MKVToolNix via winget. Approve the prompt if one appears.")
             if _run_privileged(["winget", "install", "-e", "--id", "MoritzBunkus.MKVToolNix"]):
                 return True
-            print("FALIURE: winget install failed or was declined.")
+            print("winget install failed or was declined.")
         print("Install manually: https://mkvtoolnix.download/downloads.html#windows")
         return False
 
     if system == "Linux":
         for mgr, cmd in _LINUX_PACKAGE_MANAGERS:
-            if _shutil.which(mgr):
-                print(f"Installing MKVToolNix via {mgr} — enter your password if prompted.")
+            if shutil.which(mgr):
+                print(f"Installing MKVToolNix via {mgr}.\nEnter your password if prompted.")
                 if _run_privileged(cmd):
                     return True
                 print(f"{mgr} install failed or was declined.")
                 return False
-        print("No supported package manager found (apt/dnf/pacman/zypper). Install manually.")
+        print("No supported package manager found (apt, dnf, pacman, zypper). Install manually.")
         return False
 
     # ================================================================================================== #
     # Currently we dont support MacOS                                                                    #
     #                                                                                                    #
     # if system == "Darwin":                                                                             #
-    #     if _shutil.which("brew"):                                                                      #
+    #     if shutil.which("brew"):                                                                      #
     #         print("Installing MKVToolNix via Homebrew.")                                               #
     #         if subprocess.run(["brew", "install", "mkvtoolnix"], check=True).returncode == 0:          #
     #             return True                                                                            #
@@ -316,10 +429,11 @@ def _download_mkvtoolnix() -> bool:
     #     return False                                                                                   #
     # ================================================================================================== #
 
-    print(f"Don't know how to install MKVToolNix on {system} — install manually.")
+    print(f"Don't know how to install MKVToolNix on {system}. Install manually.")
     return False
 
 
-
-#TODO Add a Updater
-#INFO No support for macOS
+# TODO: version-check / update function for yt-dlp, ffmpeg, deno.
+# Separate from check_dependencies() on purpose: comparing installed vs
+# latest release requires a network call per tool, which check_dependencies
+# is not meant to do on every ordinary run.
