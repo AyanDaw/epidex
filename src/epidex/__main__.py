@@ -2,9 +2,8 @@
 
 # Library Dependencies Check!
 
-import sys
 import importlib.util
-
+import sys
 
 REQUIRED_PACKAGES = {
     "requests": "requests",
@@ -18,7 +17,7 @@ if missing:
               f"Install with:\n    pip install {' '.join(missing)}")
 
 
-from epidex.cli import main
+from epidex import cli
 
 if __name__ == "__main__":
-    main()
+    cli.main()
