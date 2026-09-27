@@ -42,6 +42,7 @@ import requests
 from epidex import paths
 from epidex.env_manager import EnvConfig  # only for the type, not the class
 
+# TODO Check for cookies too. Ask for a Morzilla browser. (Zen, Firefox). Otherwise ask for a cookie file.
 
 @dataclass
 class ToolPaths:

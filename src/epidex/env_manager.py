@@ -68,6 +68,7 @@ from epidex import paths
 # TODO Separate Series and App variables in .show.env and .app.env
 # TODO Backup system will change too
 # Its a internal module change issue so it should not ripple through other modules
+# TODO On first run, or Missing state. Ask for a Morzilla browser. (Zen, Firefox). Otherwise ask for a cookie file.
 
 @dataclass
 class EnvConfig:
