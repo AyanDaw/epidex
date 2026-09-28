@@ -18,16 +18,16 @@ class Episode:
         (e.g. "140") — its length gives the zero-padding width used in
         build_filename() (e.g. "140" -> pad to 3 digits: E005)."""
 
-        self.series = series
-        self.season = season
-        self.epnumber = epnumber
-        self.maxeps = maxeps
-        self.title = None              # set by fetch_metadata()
-        self.youtube_url = yt_url
-        self.runtime = None             # filled in by QueueManager, after mkv_tools.fetch_runtime()
-        self.description = None
-        self.filename = None            # set by build_filename()
-        self.download_status = False    # filled in by QueueManager, after Downloader.download()
+        self.series: str = series
+        self.season: int = season
+        self.epnumber: int = epnumber
+        self.maxeps: str = maxeps
+        self.title: str | None = None              # set by fetch_metadata()
+        self.youtube_url: str = yt_url
+        self.runtime: str | None = None             # filled in by QueueManager, after mkv_tools.fetch_runtime()
+        self.description: str | None = None
+        self.filename: str | None = None            # set by build_filename()
+        self.download_status: bool = False    # filled in by QueueManager, after Downloader.download()
 
     def build_filename(self) -> str:
         """e.g. 'Series A S01E005 <Title>.mkv'.
