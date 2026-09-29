@@ -1,5 +1,13 @@
-# InputPanel class
+import random
+import re
+import time
 
+from epidex.cli import Episode, QueueManager
+
+FUNNY_MSG = ["Wait i ate too much, *burrrrp* let me digest some food :)", 
+             "Hey You are working too hard, Its a water break reminder",
+             "Its good to take break sometimes ;)",
+             "Have you taken a washroom break? remember dont long hold your pee :|"]
 
 class InputPanel:
     """Keeps asking for episode number/URL/description and pushing Episodes into the

@@ -6,14 +6,12 @@
 # import math
 # import os
 # import platform
-# import queue
 # import random
 # import re
 # import requests
 # import shutil
 # import subprocess
 # import sys
-# import threading
 # import time
 # from datetime import datetime
 # from dotenv import dotenv_values
@@ -24,18 +22,23 @@
 # Custom Modules Import
 
 from epidex import paths
-from epidex.dependencies import ToolPaths
+from epidex.dependencies import ToolPaths, check_dependencies
+from epidex.downloader import Downloader
 from epidex.env_manager import EnvManager
+from epidex.episode import Episode
+from epidex.logging_utils import LogWriter
+from epidex.mkv_tools import MkvTools
 
-# from epidex.dependencies import check_dependencies
-# from epidex.episode import Episode
 # from epidex.input_panel import InputPanel
-# from epidex.queue_manager import QueueManager
 # from epidex.tmdb import load_metadata_tmdb
+from epidex.paths import get_app_data
+from epidex.queue_manager import QueueManager
 
-
-
-
+logger = LogWriter(
+    log_file=get_app_data("log_file.txt", series=series, season=season),
+    linkbook=get_app_data("linkbook.txt", series=series, season=season),
+)
+Q = QueueManager(downloader=..., mkv_tools=..., log_fn=logger.append_to_log, linkbook_fn=logger.append_to_linkbook, maxsize=10)
 
 
 
@@ -116,11 +119,8 @@ config = EnvManager().load()   # returns dict: SERIES, SEASON, DOWNLOAD_DIR, ...
 series_dir = paths.get_series_season_path(config["SERIES"], config["SEASON"])
 download_dir = paths.get_download_dir(config["SERIES"], config["SEASON"], config.get("DOWNLOAD_DIR"))
 
-TYPE = "tv"
-
 
 config = None
-TMDB_API = None
 SERIES = None
 SEASON = None
 SERIES_ID = None
@@ -132,12 +132,8 @@ DENO_BIN = None
 MKVMERGE_BIN = None
 MKVPROPEDIT_BIN = None
 
-FUNNY_MSG = ["Wait i ate too much, *burrrrp* let me digest some food :)", 
-             "Hey You are working too hard, Its a water break reminder",
-             "Its good to take break sometimes ;)",
-             "Have you taken a washroom break? remember dont long hold your pee :|"]
+
 YTDLP_LOG = Path("ytdlp_output.log")
-QUEUE_STATUS_FILE = Path("Queuestatus.json")
 
 
 def spawn_console(pyfile: str):

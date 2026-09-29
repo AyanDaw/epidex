@@ -1,81 +1,48 @@
-# load_metadata_tmdb and TMDB API interaction
+import json
+import shutil
+import sys
+from datetime import datetime
+from pathlib import Path
 
-def load_metadata_tmdb(series_id: str, season:int) -> dict:
+import requests
+
+from epidex.paths import get_app_data
+
+TYPE = "tv"
+
+
+
+
+def load_metadata_tmdb(series: str, series_id: str, season: int, api_key: str) -> dict:
     """
     Return {episode_number: title} for the whole season.
     Check cache first; on miss , call TMDB once, cache result, return it.
     """
 
-    TMDB_LINK = f"https://api.themoviedb.org/3/{TYPE}/{series_id}/season/{season}?api_key={TMDB_API}"
+    TMDB_LINK = f"https://api.themoviedb.org/3/{TYPE}/{series_id}/season/{season}"
 
     data = {}
 
     # Check the file existence
-    cache_file = Path("metadata.json")
-    if cache_file.exists():
-        last_cache_date = datetime.fromtimestamp(cache_file.stat().st_mtime)
+    cache_file = get_app_data("metadata.json", series=series, season=season)
+    
+    data = None
+    if cache_file.exists() and _ask_yes_no("\n\n"+"There exists a previous cached matadata.\n"+f"Last fetched time:\t{last_cache_date.strftime("%Y-%m-%d %H:%M:%S")}"+"\n\nDo you want to use that?"+"\nIf no then fresh metadata will be fetched."):
+        # Python 3.12+ needed.
+        last_cache_date = datetime.fromtimestamp(cache_file.stat().st_mtime)  # noqa: DTZ006
         fetch_succeeded = False
         while True:
-            print(f"\n\nThere exists a previous cached matadata.\nLast fetched time:\t{last_cache_date.strftime("%Y-%m-%d %H:%M:%S")}")
-            nter = input("\n\nDo you want to use that?\nif no then fresh metadata will be fetched. [Y/n]:> ")
-
-            if nter in ["y", "Y", ""]:
-                try:
-                    with open(cache_file, "r") as file:
-                        data = json.load(file)
-                        if data: 
-                            print("The file has been read successfully!")  # In the file we will contain only json part not the whole response. its already in json
-                            break
-                except json.JSONDecodeError:
-                    print("The file exists but contains invalid JSON (corrupted or manually edited incorrectly)")
-                    continue
-                except PermissionError:
-                    print("You dont have permission to read it.")
-                    continue
-                except OSError:
-                    print("Other Filesystem-related errors (disk issues, invalid path, etc.).")
-                    continue
+            print(f"\n\nThere exists a previous cached matadata.\nLast fetched time:\t{last_cache_date.strftime("%Y-%m-%d %H:%M:%S")}")  # Python 3.12+ we will add that in directory
+            if _ask_yes_no("\n\nDo you want to use that?\nif no then fresh metadata will be fetched."):
+                data = _read_cache(cache_file=cache_file)
             else:
                 while True:
-                    try:
-                        response = requests.get(TMDB_LINK, timeout=20)
-                        response.raise_for_status()
-                    
-                    except requests.exceptions.Timeout:
-                        print("Request time out!")
-                        nter = input("Want to retry?[Y/n]:> ")
-                        if nter in ["y", "Y", ""]:
-                            continue
-                        else:
-                            break
-                    except requests.exceptions.ConnectionError:
-                        print("Could not connect to TMDB")
-                        nter = input("Want to retry? [Y/n]:> ")
-                        if nter in ["y", "Y", ""]:
-                            continue
-                        else:
-                            break
-                    except requests.exceptions.HTTPError:
-                        code = response.status_code
-                        if code == 401:
-                            print("Bad API Key\nRestart the program after correcting the API Key\nExiting...")
-                            exit()
-                        elif code == 404:
-                            print("Series Not found!\nRestart the program after correcting the API Key\nExiting...")
-                            exit()
-                        else:
-                            print(f"Unexpected Error: {code}")
-                        nter = input("Want to retry? [Y/n]:> ")
-                        if nter in ["y", "Y", ""]:
-                            continue
-                        else:
-                            break
-
-                    data = response.json()
+                    data = _fetch_season(tmdb_link=TMDB_LINK, api_key=TMDB_API)
                     if data:
                         try:
-                            cache_file_backup = Path("metadatacopy.json")
+                            cache_file_backup = cache_file.with_name(cache_file.name + ".bak")
                             shutil.copy2(cache_file, cache_file_backup) # (src,dest)
+
                             with open(cache_file, "w") as file:
                                 json.dump(data, file, indent=4) # writing the json format in the json file
                                 print("\n\nMetadata Successfully fetched and written in the file!")
@@ -84,28 +51,23 @@ def load_metadata_tmdb(series_id: str, season:int) -> dict:
                             break
                         except TypeError:
                             print("Your dictionary contains an object that JSON can't serialize (e.g. Path, set, custom class).")
-                            cache_file.unlink()
-                            cache_file_backup.rename("metadata.json")
+                            cache_file_backup.replace(cache_file)
                             break
                         except PermissionError:
                             print("Cannot write to the file or directory.")
-                            cache_file.unlink()
-                            cache_file_backup.rename("metadata.json")
+                            cache_file_backup.replace(cache_file)
                             break
                         except OSError:
                             print("Other Filesystem-related errors (disk issues, invalid path, etc.).")
-                            cache_file.unlink()
-                            cache_file_backup.rename("metadata.json")
+                            cache_file_backup.replace(cache_file)
                             break
                     else: # This case is unsuccessfull metadata fetch, three options either retry or reuse old data or exit.
                         print("\n\nBecause of some unexpected problems we couldn't fetch your fresh metadata.")
-                        nter = input("Want to retry?[Y/n]:> ")
-                        if nter in ["y", "Y", ""]:
+                        if _ask_retry():
                             continue
                         else:
-                            nter = input("Want to exit? if not we will send you to use old data asking page. [Y/n]:> ")
-                            if nter in ["y", "Y",""]:
-                                exit()
+                            if _ask_yes_no("Want to exit? if not we will send you to use old data asking page."):
+                                sys.exit()
                             else:
                                 break # exits from inner loop
             if fetch_succeeded:
@@ -115,81 +77,130 @@ def load_metadata_tmdb(series_id: str, season:int) -> dict:
             # Now WE have the metadata if file EXISTS
     else:
         while True:
-            try:
-                print("Wait Fetching tmdb\n")
-                response = requests.get(TMDB_LINK, timeout=20)
-                response.raise_for_status()
-
-            except requests.exceptions.Timeout:
-                print("Request time out!")
-                nter = input("Want to retry? if not then we would exit. [Y/n]:> ")
-                if nter in ["y", "Y", ""]:
-                    continue
-                else:
-                    exit()
-
-            except requests.exceptions.ConnectionError:
-                print("Could not connect to TMDB")
-                nter = input("Want to retry? if not then we would exit. [Y/n]:> ")
-                if nter in ["y", "Y", ""]:
-                    continue
-                else:
-                    exit()
-            
-            except requests.exceptions.HTTPError:
-                code = response.status_code
-                if code == 401:
-                    reason = "Bad API Key"
-                elif code == 404:
-                    reason = "Series Not found!"
-                else:
-                    reason = code
-                print(f"Unexpected Error: {reason}")
-                nter = input("Want to retry? if not then we would exit. [Y/n]:> ")
-                if nter in ["y", "Y", ""]:
-                    continue
-                else:
-                    exit()
-
-            data = response.json()
+            data = _fetch_season(tmdb_link=TMDB_LINK, api_key=TMDB_API)
             if data:
                 try:
+                    cache_file.parent.mkdir(parents=True, exist_ok=True)
                     with open(cache_file, "w") as file:
                         json.dump(data, file, indent=4) # writing the json format in file
                         print("\n\nMetadata Successfully fetched and written in the file!")
                         break
                 except TypeError:
                     print("Your dictionary contains an object that JSON can't serialize (e.g. Path, set, custom class).")
-                    nter = input("Want to retry? if not then we would exit. [Y/n]:> ")
-                    if nter in ["y", "Y", ""]:
+                    
+                    if _ask_retry("If not then we would exit."):
                         continue
                     else:
-                        exit()
+                        sys.exit()
                 except PermissionError:
                     print("Cannot write to the file or directory.")
-                    nter = input("Want to retry? if not then we would exit. [Y/n]:> ")
-                    if nter in ["y", "Y", ""]:
+                    if _ask_retry("If not then we would exit."):
                         continue
                     else:
-                        exit()
+                        sys.exit()
+
                 except OSError:
                     print("Other Filesystem-related errors (disk issues, invalid path, etc.).")
-                    nter = input("Want to retry? if not then we would exit. [Y/n]:> ")
-                    if nter in ["y", "Y", ""]:
+                    if _ask_retry("If not then we would exit."):
                         continue
                     else:
-                        exit()
+                        sys.exit()
+
+
             else:
                 print("\n\nBecause of some unexpected problems we couldn't fetch your fresh metadata.")
-                nter = input("Want to retry? if not then we would exit. [Y/n]:> ")
-                if nter in ["y", "Y", ""]:
+                if _ask_retry("If not, then we would exit..."):
                     continue
                 else:
-                    exit()
+                    sys.exit()
 
     # After All of this we will either have the data in hand or we will exit the program
     metadata = {}
-    for ep in data["episodes"]:
+    episodes = data.get("episodes")
+    if not episodes:
+        sys.exit("TMDB returned no episodes for this season.")
+    for ep in episodes:
         metadata[ep["episode_number"]] = ep["name"]   # {Episode Number: Title}
     # We have the meta data dictionary now
     return metadata
+
+
+
+
+# ================================================================
+# Helper Functions
+# ================================================================
+
+def _ask_yes_no(prompt: str, default: str = "Y", alt: str = "n") -> bool:
+    answer = input(f"{prompt} [{default}|{alt}]:> ")
+    return answer in [default, default.lower(), default.upper(), ""]
+
+
+def _ask_retry(comment: str | None = None) -> bool:
+    return _ask_yes_no("Want to retry?" + f" {comment}" if comment else "")
+
+
+
+
+# ================================================================
+# Fetching Tools
+# ================================================================
+
+CLEAR_LINE = "\033[1A\033[2K"
+def _fetch_season(tmdb_link: str, api_key: str) -> dict | None:
+    """Returns the parsed JSON, or None if the fetch failed or the user gave up."""
+    while True:
+        try:
+            print("[WAIT✋]: Trying to fetch data from TMDB...\n")
+            response = requests.get(tmdb_link, params={"api_key": api_key}, timeout=20)
+            response.raise_for_status()
+            return response.json() # runs only if no exception was raised
+
+        except requests.exceptions.Timeout:
+            print("[TIMEOUT]: Request Timeout!!")
+        
+        except requests.exceptions.ConnectionError:
+            print("[FAILURE]: Could not connect to TMDB")
+
+        except requests.exceptions.HTTPError as e:
+            code = e.response.status_code
+            if code in (401, 404):
+                print("[ERROR]: Bad API key" if code == 401 else "[ERROR]: Series not found")
+                return None          # retrying can't fix this
+            print(f"[ERROR]: Error code {code}")
+        except requests.exceptions.RequestException as e:
+            print(f"[ERROR]: {type(e).__name__}")   
+
+        # reached only after a retryable failure
+        if not _ask_retry():
+            return None
+        print(CLEAR_LINE * 4, end="\r")
+
+
+def _write_cache(data: dict):
+    ...
+
+
+def _read_cache(cache_file: Path) -> dict | None:
+    """Returns the cached data, or None if it's missing, unreadable or corrupt."""
+    try:
+        with open(cache_file, "r", encoding="utf-8") as file:
+            data = json.load(file)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        print("The file exists but contains invalid JSON (corrupted or manually edited incorrectly)")
+        return None
+
+    except PermissionError:
+        print("You dont have permission to read it.")
+        return None
+
+    except OSError:
+        print("Other Filesystem-related errors (disk issues, invalid path, etc.).")
+        return None
+
+    if not data:
+        print("The cache file is empty.")
+        return None
+
+    print("The file has been read successfully!")
+    return data
