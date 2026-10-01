@@ -70,7 +70,7 @@ class QueueManager:
                 # invariant from InputPanel — a violation logs loudly here instead of
                 # surfacing as an unrelated TypeError further down.
                 assert ep.filename is not None, f"episode {ep.epnumber} enqueued with no filename"
-                ep.download_status = self.downloader.download(filename=ep.filename, yt_url=ep.youtube_url)
+                ep.download_status = self.downloader.download(filename=ep.filename, url=ep.url)
 
                 if ep.download_status:
                     full_path = str(Path(self.downloader.download_dir) / ep.filename)
@@ -80,8 +80,8 @@ class QueueManager:
 
                 self.log_fn(ep.log_entry())
                 self.linkbook_fn(
-                    ep.youtube_url if ep.download_status
-                    else f"{ep.youtube_url} + NOT SUCCESSFUL!!"
+                    ep.url if ep.download_status
+                    else f"{ep.url} + NOT SUCCESSFUL!!"
                 )
 
                 time.sleep(random.randint(3,8))

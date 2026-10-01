@@ -2,7 +2,7 @@
 
 Built once by cli.py with the machine-dependent config (tool paths, download
 dir, browser, codec) and then reused for every episode: QueueManager holds a
-single Downloader instance and calls .download(filename, yt_url) once per
+single Downloader instance and calls .download(filename, url) once per
 episode pulled off the queue — download() takes the two pieces of data that
 actually change per episode; everything else was fixed at construction.
 """
@@ -42,10 +42,10 @@ class Downloader:
         self.browser = browser
         self.codec = codec
 
-    def download(self, filename: str, yt_url: str) -> bool:
+    def download(self, filename: str, url: str) -> bool:
         """Kick off yt-dlp for one episode, block until done, return success/fail.
 
-        filename/yt_url are per-episode — passed in fresh on every call by
+        filename/url are per-episode — passed in fresh on every call by
         QueueManager's worker loop, rather than stored on self.
         """
         extra_flags = {"start_new_session": True} if os.name != "nt" else {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
@@ -65,7 +65,7 @@ class Downloader:
 
                     "-P", self.download_dir,
 
-                    yt_url,
+                    url,
                 ], check=True, stdout=logfile, stderr=logfile, **extra_flags)
 
             return True
