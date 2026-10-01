@@ -1,3 +1,17 @@
+"""InputPanel — the interactive producer side of the download queue.
+
+Asks the user, one episode at a time, for the episode URL and description,
+looks the title up in the season's cached TMDB metadata ({epnumber: title}),
+builds an Episode, and hands it to QueueManager.enqueue(). It never downloads,
+tags, or touches the filesystem itself.
+
+QueueManager and LogWriter are injected by cli.py (imported here only for type
+hints); Episode is the one sibling import, because it is a pure data type.
+
+run() always returns normally instead of calling exit(), so cli.py can drain
+the queue and shut the monitors down cleanly afterwards.
+"""
+
 import os
 import random
 import subprocess
@@ -20,10 +34,19 @@ _YT_HOSTS = ("youtube.com", "youtu.be")
 
 
 class InputPanel:
-    """Keeps asking for episode number/URL/description and pushing Episodes into the
-    QueueManager's queue, pausing with a message when there isn't enough room."""
+    """Prompts for episode details and feeds finished Episodes into the queue.
+
+    Attributes mirror the constructor arguments, plus last_episode: the highest
+    episode number in season_metadata. It marks the end of the season and is
+    passed to Episode as maxeps for filename zero-padding.
+    """
     def __init__(self, user: str, manager: "QueueManager", log_writer: "LogWriter", series: str, season: int,
                  season_metadata: dict, min_free_slots: int = 2):
+        """user is a display name used in interrupt messages (placeholder for
+        future multi-user features). manager and log_writer are injected by
+        cli.py. season_metadata is the {episode_number: title} dict built by
+        tmdb.py. min_free_slots is how many queue slots must be open before
+        input resumes after the queue has filled up."""
         
         self.user = user # Place holder for now for future upgrades
         self.manager = manager
@@ -36,7 +59,14 @@ class InputPanel:
 
 
     def wait_for_space(self, next_episode: int):
-        """TLDR: queue full -> print one rest message, then quietly wait until min_free_slots are open."""
+        """TLDR: queue full -> print one rest message, then quietly wait until min_free_slots are open.
+
+        Does nothing unless the queue is completely full. Once it is, blocks
+        (polling every second) until min_free_slots are free, so the user gets
+        a batch of room instead of one slot at a time. next_episode is only
+        used in the message. Ctrl+C here propagates up to run().
+        """
+
         if self.manager.empty_slots() != 0:
             return
         print(random.choice(FUNNY_MSG))
@@ -46,7 +76,28 @@ class InputPanel:
 
 
     def run(self, start_epnumber: int):
-        """Main input loop: build one Episode per iteration, enqueue it, repeat."""
+        """Main input loop: build one Episode per iteration and enqueue it, until told to stop.
+
+        start_epnumber is the episode number to start asking from.
+
+        Each iteration: stop if past the season's last episode; wait for queue
+        space; look the title up in season_metadata (if it is missing, offer to
+        skip that episode); ask for the URL and description; build the Episode
+        and enqueue it; clear the screen.
+
+        Returns (never exits the process) when: the user types 'quit'; the
+        episode number passes the season's last episode; the user declines to
+        skip an episode with no title; or Ctrl+C hits anywhere outside the URL
+        and description prompts. Ctrl+C at those two prompts only cancels the
+        current entry, and the same episode is asked again. cli.py takes over
+        after return to drain the queue.
+
+        Log markers written: "[SKIPPED]: <ep>" for every skipped episode, and
+        "[FINALE]: Season complete" when the season's last episode is reached,
+        either by the end-of-season check (only if this run handled at least
+        one episode) or by skipping the last episode.
+        """
+
         epnumber = start_epnumber
         print("(Type 'quit' at the URL prompt to stop adding episodes. Ctrl+C at a prompt cancels that entry; "
               "Ctrl+C during a break or the skip question stops adding. Either way, the queue finishes before exit.)\n")
@@ -131,7 +182,13 @@ class InputPanel:
 # ================================================================
 
 def _clean_url(url: str) -> str:
-    """TLDR: drop YouTube's `si` share-tracking param only; leave other sites/params alone."""
+    """TLDR: drop YouTube's `si` share-tracking param only; leave other sites/params alone.
+
+    Only hosts in _YT_HOSTS (and their subdomains) are touched; every other URL
+    is returned unchanged. Other query params are kept, in order.
+    e.g. 'https://youtu.be/abc?si=XYZ&t=30' -> 'https://youtu.be/abc?t=30'
+    """
+
     parts = urlsplit(url)
     host = parts.hostname or ""
     if not any(host == hosts or host.endswith("." + hosts) for hosts in _YT_HOSTS):
@@ -141,6 +198,9 @@ def _clean_url(url: str) -> str:
 
 
 def _looks_like_url(url: str) -> bool:
+    """True if url has an http(s) scheme and a host. Syntax check only —
+    whether yt-dlp supports the site is left for yt-dlp to report."""
+
     parts = urlsplit(url)
     return parts.scheme in ("http", "https") and bool(parts.netloc)
 
@@ -152,7 +212,11 @@ def _looks_like_url(url: str) -> bool:
 # ================================================================
 
 def _ask_yes_no(prompt: str) -> bool:
-    """Ask a [Y/n] question. Enter, 'y', 'yes' mean yes; 'n', 'no' mean no; anything else re-asks."""
+    """Ask a [Y/n] question. Enter, 'y', 'yes' mean yes; 'n', 'no' mean no; anything else re-asks.
+
+    Ctrl+C is not caught here; it propagates to the caller.
+    """
+
     while True:
         answer = input(f"{prompt} [Y/n]:> ").strip().lower()
         if answer in ("", "y", "yes"):
@@ -163,5 +227,9 @@ def _ask_yes_no(prompt: str) -> bool:
 
 
 def _clear_screen():
-    """TLDR: clear this console the same way Qmonitor.py does."""
-    subprocess.run("cls" if os.name == "nt" else "clear", shell=True)  # noqa: PLW1510
+    """TLDR: clear this console the same way Qmonitor.py does.
+
+    Runs 'cls' on Windows and 'clear' everywhere else.
+    """
+
+    subprocess.run("cls" if os.name == "nt" else "clear", check=False, shell=True)
