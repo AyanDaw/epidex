@@ -13,39 +13,34 @@ import re
 class Episode:
     """Holds one episode's identity, TMDB metadata, and pipeline state."""
 
-    def __init__(self, series: str, season: int, epnumber: int, maxeps: str, yt_url: str):
-        """maxeps is the season's total episode count, passed as a string
-        (e.g. "140") — its length gives the zero-padding width used in
-        build_filename() (e.g. "140" -> pad to 3 digits: E005)."""
+    def __init__(self, series: str, season: int, epnumber: int, maxeps: str, title: str, url: str):
+        """maxeps is the season's total episode count (e.g. "140") — its digit
+        count gives the zero-padding width used in build_filename()
+        (140 -> pad to 3 digits: E005)."""
 
-        self.series: str = series
-        self.season: int = season
-        self.epnumber: int = epnumber
-        self.maxeps: str = maxeps
-        self.title: str | None = None              # set by fetch_metadata()
-        self.youtube_url: str = yt_url
+        self.series: str = series                   # sent by Input Panel
+        self.season: int = season                   # sent by Input Panel
+        self.epnumber: int = epnumber               # sent by Input Panel
+        self.maxeps: str = maxeps                   # sent by Input Panel
+        self.title: str = title                     # sent by Input Panel
+        self.url: str = url                         # sent by Input Panel
         self.runtime: str | None = None             # filled in by QueueManager, after mkv_tools.fetch_runtime()
-        self.description: str | None = None
+        self.description: str | None = None         # set by Input Panel
         self.filename: str | None = None            # set by build_filename()
-        self.download_status: bool = False    # filled in by QueueManager, after Downloader.download()
+        self.download_status: bool = False          # filled in by QueueManager, after Downloader.download()
+
 
     def build_filename(self) -> str:
         """e.g. 'Series A S01E005 <Title>.mkv'.
 
-        MUST be called after fetch_metadata() — title has to be set first,
-        or this silently writes the literal string "None" into the filename
-        instead of erroring.
+        Builds the filename from the title InputPanel set.
         """
-        padding = len(self.maxeps)
+        padding: int = max(len(self.maxeps), 2)
         self.filename = f"{self.series} S{self.season:02d}E{self.epnumber:0{padding}d} {self.title}"
         self.filename = re.sub(r'[<>:"/\\|?*]', "", self.filename).strip()  # Sanitize for Windows
         self.filename += ".mkv"
         return self.filename
 
-    def fetch_metadata(self, tmdb_cache):
-        """Look up this episode's title from the season's cached TMDB data.
-        Call this before build_filename()."""
-        self.title = tmdb_cache.get(self.epnumber)
 
     def log_entry(self) -> str:
         """Return the '<Ep no.> <runtime> <description>' line for log.txt.
