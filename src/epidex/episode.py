@@ -14,9 +14,9 @@ class Episode:
     """Holds one episode's identity, TMDB metadata, and pipeline state."""
 
     def __init__(self, series: str, season: int, epnumber: int, maxeps: str, title: str, url: str):
-        """maxeps is the season's total episode count (e.g. "140") — its digit
-        count gives the zero-padding width used in build_filename()
-        (140 -> pad to 3 digits: E005)."""
+        """maxeps is the season's total episode count as a string (e.g. "140")
+        — its length gives the zero-padding width used in build_filename(),
+        with a minimum of 2 ("140" -> E005, "9" -> E05)."""
 
         self.series: str = series                   # sent by Input Panel
         self.season: int = season                   # sent by Input Panel
