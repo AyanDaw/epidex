@@ -18,7 +18,7 @@ class LogWriter:
         """TLDR: append one line to self.log_file. Never raises — catches its own I/O errors and prints instead."""
         try:
             with open(self.log_file, "a", encoding="utf-8") as f:
-                f.write(f"{log}\n")
+                f.write(log.rstrip("\n") + "\n") # Nullifies the newline coming from any caller.
         except FileNotFoundError:
             print("The parent directory doesn't exist.")
         except PermissionError:
