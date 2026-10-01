@@ -1,1 +1,25 @@
-# project metadata + dependency list ONLY — no [project.scripts]/entry_points, since we're not distributing via pip install
+[project]
+name = "epidex"
+version = "0.1.0"
+description = "Epidex — A Python media downloader with YouTube URL and other yt-dlp-supported URLs support and TMDB metadata integration for organized media collections. Series-centric CLI downloader built on yt-dlp, with TMDB metadata enrichment"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+    "rich>=13.0",
+    "platformdirs>=4.0",
+]
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+]
+
+# Not for pip/PyPI: epidex ships as bin/ shim launchers or a PyInstaller binary,
+# so there is deliberately no [project.scripts] and no [build-system] here.
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]   # src-layout: lets tests import epidex without installing it
