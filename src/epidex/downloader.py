@@ -29,7 +29,7 @@ import os
 import subprocess
 
 from epidex.cli import ToolPaths  # Just to know what is it.
-from epidex.paths import YTDLP_LOG
+from epidex.paths import OUTPUT_LOG
 
 
 class Downloader:
@@ -50,7 +50,7 @@ class Downloader:
         """
         extra_flags = {"start_new_session": True} if os.name != "nt" else {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
         try:
-            with open(YTDLP_LOG, "a", encoding="utf-8") as logfile:
+            with open(OUTPUT_LOG, "a", encoding="utf-8") as logfile:
                 subprocess.run([
                     str(self.toolpaths.yt_dlp), "--js-runtimes", f"deno:{self.toolpaths.deno}",
                     # "--ignore-errors",
@@ -71,7 +71,7 @@ class Downloader:
             return True
 
         except subprocess.CalledProcessError:
-            with open(YTDLP_LOG, "a", encoding="utf-8") as logfile:
+            with open(OUTPUT_LOG, "a", encoding="utf-8") as logfile:
                 logfile.write("\n\n\n[ERROR]: yt-dlp failed to download the file!!\n\n\n")
 
             return False

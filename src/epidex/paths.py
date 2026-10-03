@@ -59,7 +59,7 @@ DATA_PATH = EPIDEX_APP_PATH / "data"                    # epidex(root)/data/
 # MONITORS
 MONITORS_DATA = DATA_PATH / "monitors"                  # epidex(root)/data/monitors/
 QUEUE_STATUS_FILE = MONITORS_DATA / "queue_status.json" # epidex(root)/data/monitors/queue_status.json
-YTDLP_LOG = MONITORS_DATA / "ytdlp.log"                 # epidex(root)/data/monitors/ytdlp.log
+OUTPUT_LOG = MONITORS_DATA / "output.log"                 # epidex(root)/data/monitors/output.log
 STOP_FLAG = MONITORS_DATA / "STOP_MONITORS"             # epidex(root)/data/monitors/STOP_MONITORS
 
 

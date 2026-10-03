@@ -1,13 +1,13 @@
-"""ytdlp_monitor — live view of the yt-dlp output log.
+"""output_monitor — live view of the pipeline tools' output log.
 
-Runs in its own console tab, spawned by cli.py. Tails YTDLP_LOG (written by
-Downloader and MkvTools) and exits once STOP_FLAG exists and the log has been
-fully read.
+Runs in its own console tab, spawned by cli.py. Tails OUTPUT_LOG (written by
+Downloader and MkvTools: yt-dlp, mkvmerge, mkvpropedit) and exits once
+STOP_FLAG exists and the log has been fully read.
 """
 
 import time
 
-from epidex.paths import STOP_FLAG, YTDLP_LOG
+from epidex.paths import OUTPUT_LOG, STOP_FLAG
 
 # yt-dlp progress lines that must end with a real newline instead of "\r"
 _NEWLINE_AFTER = ("[download] Destination:", "[download] 100%")
@@ -25,12 +25,12 @@ def _print_line(line: str):
 
 
 def main():
-    """Tail YTDLP_LOG from its current end, printing new lines as they arrive."""
+    """Tail OUTPUT_LOG from its current end, printing new lines as they arrive."""
     print("Watching yt-dlp / mkvmerge / mkvpropedit output...\n")
-    YTDLP_LOG.touch(exist_ok=True)   # create it empty if this is the very first run
+    OUTPUT_LOG.touch(exist_ok=True)   # create it empty if this is the very first run
     # errors="replace": yt-dlp's file encoding isn't guaranteed to be UTF-8 on
     # every OS, and one undecodable byte must not kill the monitor mid-download.
-    with open(YTDLP_LOG, "r", encoding="utf-8", errors="replace") as log:
+    with open(OUTPUT_LOG, "r", encoding="utf-8", errors="replace") as log:
         log.seek(0, 2)               # start at the end: only show new output
         while True:
             line = log.readline()

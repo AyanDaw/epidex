@@ -47,12 +47,7 @@ def main():
             time.sleep(1)
             continue
 
-        epnum = data["now_processing_epnumber"]
-        title = data["now_processing_title"]
-        if epnum is None:            # idle, or the final "All done!" snapshot
-            header = f"Now Processing: {title or 'Idle'}"
-        else:
-            header = f"Now Processing Episode: {epnum} : {title}"
+        header = f"Now Processing Episode: {data['now_processing_epnumber']} : {data['now_processing_title']}"
         upcoming = "\n".join(ep["title"] for ep in data["upcoming"])
 
         _clear_screen()
