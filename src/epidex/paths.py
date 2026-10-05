@@ -38,7 +38,6 @@ TODO — forward-looking path changes (multi-user support, not yet built):
 import platform
 import re
 from pathlib import Path
-from typing import Literal
 
 import platformdirs
 
@@ -103,7 +102,7 @@ def get_download_dir(series: str, season, env_download_dir: str | None) -> Path:
 
 
 # APP_DATA_DIRS
-def get_app_data(query: Literal["linkbook.txt", "log_file.txt", "metadata.json"], series: str, season) -> Path:
+def get_app_data(query: str, series: str, season) -> Path:
     """Return the full path to a specific app-data file (linkbook, log, or metadata cache. Limited Options) for a series+season."""
     
     # ~/<PATH>/linkbook.txt
