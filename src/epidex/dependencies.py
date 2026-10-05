@@ -36,11 +36,14 @@ import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import requests
 
 from epidex import paths
-from epidex.env_manager import EnvConfig  # only for the type, not the class
+
+if TYPE_CHECKING:
+    from epidex.env_manager import EnvConfig  # only for the type, not the class
 
 # TODO Check for cookies too. Ask for a Morzilla browser. (Zen, Firefox). Otherwise ask for a cookie file.
 
@@ -61,7 +64,7 @@ class ToolPaths:
     mkvpropedit: Path | None
 
 
-def check_dependencies(config: EnvConfig) -> tuple[ToolPaths, dict[str, str]]:
+def check_dependencies(config: "EnvConfig") -> tuple[ToolPaths, dict[str, str]]:
     """TLDR: resolve all five tools, report results, change nothing.
 
     Returns (ToolPaths, updates). ToolPaths is always fully built, one
