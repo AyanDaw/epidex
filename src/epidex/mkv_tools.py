@@ -11,14 +11,16 @@ passing just the file path — same constructor/method split as Downloader.
 import json
 import math
 import subprocess
+from typing import TYPE_CHECKING
 
-from epidex.cli import ToolPaths  # TypeHint only
+if TYPE_CHECKING:
+    from epidex.dependencies import ToolPaths  # TypeHint only
 
 
 class MkvTools:
     """Holds tool paths + language settings; reused across every episode."""
 
-    def __init__(self, tool_paths: ToolPaths, lang_code: str = "ben", lang_name: str = "[ বাংলা (Bengali) ]"):
+    def __init__(self, tool_paths: "ToolPaths", lang_code: str = "ben", lang_name: str = "[ বাংলা (Bengali) ]"):
         """Set once by cli.py — none of this changes between episodes.
 
         lang_code/lang_name are hardcoded defaults for now (this project's
