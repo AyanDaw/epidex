@@ -223,10 +223,10 @@ class EnvManager:
         print("\nDependency paths (optional - leave blank to keep current / auto-detect):\n")
         result = {}
         for key, name in [("YT_DLP_PATH", "yt-dlp"), ("FFMPEG_PATH", "ffmpeg"), ("DENO_PATH", "deno"),
-                           ("MKVMERGE_PATH", "mkvmerge"), ("MKVPROPEDIT_PATH", "mkvpropedit")]:
+                          ("MKVMERGE_PATH", "mkvmerge"), ("MKVPROPEDIT_PATH", "mkvpropedit")]:
             current = existing.get(key, "") or ""
             hint = f" [{current}]" if current else ""
-            entered = input(f"Enter {name}'s full path{hint}:> ").strip()
+            entered = input(f"Enter {name}'s full path{hint}:> ").strip().strip("\"'")
             result[key] = entered or current
         return result
 
