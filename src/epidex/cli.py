@@ -273,6 +273,9 @@ def _configs_solver(env_manager: EnvManager) -> tuple[EnvConfig, ToolPaths]:
     _clear_screen()
     while True:
         tool_paths, updates = _check_tools(envconfig=envconfig)
+        # Persist right away: quitting or crashing below must not lose what was found.
+        for key, path in updates.items():
+            env_manager.set_tool_path(key=key, path=path)
         missing = [f.name for f in fields(tool_paths) if getattr(tool_paths, f.name) is None]
         if not missing:
             print("[INFO]: Dependencies are all set!")
@@ -302,8 +305,6 @@ def _configs_solver(env_manager: EnvManager) -> tuple[EnvConfig, ToolPaths]:
                 sys.exit(0)
         # the loop restarts here and re-checks everything
 
-    for key, path in updates.items():
-        env_manager.set_tool_path(key=key, path=path)
     return envconfig, tool_paths
 
 
