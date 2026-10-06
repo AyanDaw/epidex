@@ -59,6 +59,8 @@ class Downloader:
                     # "--ignore-errors",
                     "-f", f"bv[vcodec^={self.codec}]+ba/bv+ba",     # avc1 chosen as most compatible; falls back to any codec
 
+                    "--ffmpeg-location", str(self.toolpaths.ffmpeg), # ffmpeg location for safety
+                    
                     "-o", filename,                                  # Output filename
 
                     "--cookies-from-browser", self.browser,          # Preferably firefox or its forks, or any browser
