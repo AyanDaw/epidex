@@ -26,6 +26,7 @@ macOS is not a supported platform yet. Where a per-tool branch would need
 one, it is left out or commented, not silently handled.
 """
 
+import os
 import platform
 import shutil
 import stat
@@ -64,7 +65,7 @@ class ToolPaths:
     mkvpropedit: Path | None
 
 
-def check_dependencies(config: "EnvConfig") -> tuple[ToolPaths, dict[str, str]]:
+def check_dependencies(config: EnvConfig) -> tuple[ToolPaths, dict[str, str]]:
     """TLDR: resolve all five tools, report results, change nothing.
 
     Returns (ToolPaths, updates). ToolPaths is always fully built, one
@@ -108,6 +109,19 @@ def _works(path: Path, flags: str = "--version") -> bool:
         return False
 
 
+def _extra_install_dirs() -> list[Path]:
+    """TLDR: well-known install folders that installers don't add to PATH.
+
+    The MKVToolNix Windows installer drops its tools in Program Files without
+    touching PATH, so shutil.which() can never find them. Empty on Linux,
+    where the package manager already puts binaries on PATH.
+    """
+    if platform.system() != "Windows":
+        return []
+    roots = (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)"))
+    return [Path(root) / "MKVToolNix" for root in roots if root]
+
+
 def _resolve(
     configured: str | None,
     name: str,
@@ -144,6 +158,8 @@ def _resolve(
     found_on_path = shutil.which(name)
     if found_on_path:
         candidates.append(Path(found_on_path))
+    for extra_dir in _extra_install_dirs():
+        candidates.append(extra_dir / binary_name)
 
     for candidate in candidates:
         if candidate.exists() and _works(candidate, flags=version_flag):
