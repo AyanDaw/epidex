@@ -82,7 +82,7 @@ def check_dependencies(config: "EnvConfig") -> tuple[ToolPaths, dict[str, str]]:
     tools_dir = paths.TOOLS_DIR
 
     yt_dlp = _resolve(config.yt_dlp_path, "yt-dlp", tools_dir, updates, "YT_DLP_PATH")
-    ffmpeg = _resolve(config.ffmpeg_path, "ffmpeg", tools_dir, updates, "FFMPEG_PATH")
+    ffmpeg = _resolve(config.ffmpeg_path, "ffmpeg", tools_dir, updates, "FFMPEG_PATH", version_flag= '-version')
     deno = _resolve(config.deno_path, "deno", tools_dir, updates, "DENO_PATH")
     mkvmerge = _resolve(config.mkvmerge_path, "mkvmerge", tools_dir, updates, "MKVMERGE_PATH")
     mkvpropedit = _resolve(config.mkvpropedit_path, "mkvpropedit", tools_dir, updates, "MKVPROPEDIT_PATH")
@@ -90,17 +90,18 @@ def check_dependencies(config: "EnvConfig") -> tuple[ToolPaths, dict[str, str]]:
     return ToolPaths(yt_dlp, ffmpeg, deno, mkvmerge, mkvpropedit), updates
 
 
-def _works(path: Path) -> bool:
+def _works(path: Path, flags: str = "--version") -> bool:
     """TLDR: confirm a candidate binary actually runs, not just exists.
 
-    Runs `<path> --version` and treats a zero exit code as working. A path
-    that exists but is corrupted, wrong-architecture, or half-downloaded
-    will fail this and get rejected by _resolve rather than accepted and
-    only discovered broken later, mid-download or mid-merge.
+    Runs `<path> --version` (for 'ffmpeg' its '-version')and treats a zero
+    exit code as working. A path that exists but is corrupted,
+    wrong-architecture, or half-downloaded will fail this and get rejected
+    by _resolve rather than accepted and only discovered broken later, 
+    mid-download or mid-merge.
     """
     try:
         result = subprocess.run(
-            [str(path), "--version"], capture_output=True, check=False, timeout=10
+            [str(path), flags], capture_output=True, check=False, timeout=10
         )
         return result.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
@@ -113,6 +114,7 @@ def _resolve(
     managed_dir: Path,
     updates: dict[str, str],
     env_key_name: str,
+    version_flag: str = '--version'
 ) -> Path | None:
 
     """TLDR: find one tool by checking .env, then the managed tools folder,
@@ -144,7 +146,7 @@ def _resolve(
         candidates.append(Path(found_on_path))
 
     for candidate in candidates:
-        if candidate.exists() and _works(candidate):
+        if candidate.exists() and _works(candidate, flags=version_flag):
             resolved = str(candidate)
             if resolved != configured:
                 updates[env_key_name] = resolved
