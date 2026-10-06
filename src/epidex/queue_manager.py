@@ -29,8 +29,8 @@ class QueueManager:
 
     def __init__(
         self,
-        downloader: "Downloader",
-        mkv_tools: "MkvTools",
+        downloader: Downloader,
+        mkv_tools: MkvTools,
         log_fn: Callable[[str], None],      # logging_utils.append_to_log, wired by cli.py
         linkbook_fn: Callable[[str], None], # logging_utils.append_to_linkbook
         maxsize: int,
@@ -91,7 +91,7 @@ class QueueManager:
                 self.current = None     # Clears the work bench
                 self.q.task_done()      # Next element
 
-    def enqueue(self, ep: "Episode") -> None:
+    def enqueue(self, ep: Episode) -> None:
         """TLDR: hand one Episode to the worker. Blocks if the queue is full (queue.Queue's job, not ours)."""
         self.q.put(ep)
 

@@ -40,7 +40,7 @@ class InputPanel:
     episode number in season_metadata. It marks the end of the season and is
     passed to Episode as maxeps for filename zero-padding.
     """
-    def __init__(self, user: str, manager: "QueueManager", log_writer: "LogWriter", series: str, season: int,
+    def __init__(self, user: str, manager: QueueManager, log_writer: LogWriter, series: str, season: int,
                  season_metadata: dict, min_free_slots: int = 2):
         """user is a display name used in interrupt messages (placeholder for
         future multi-user features). manager and log_writer are injected by

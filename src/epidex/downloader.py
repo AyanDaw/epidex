@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 class Downloader:
     """Holds the config needed to run yt-dlp; reused across every episode."""
 
-    def __init__(self, toolpaths: "ToolPaths", download_dir: str, browser: str = "firefox", codec: str = "avc1"):
+    def __init__(self, toolpaths: ToolPaths, download_dir: str, browser: str = "firefox", codec: str = "avc1"):
         """Set once by cli.py — none of this changes between episodes."""
         self.toolpaths = toolpaths
         self.download_dir = download_dir
