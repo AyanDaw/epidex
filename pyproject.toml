@@ -1,6 +1,6 @@
 [project]
 name = "epidex"
-version = "0.2.0"
+version = "0.2.1"
 description = "Epidex — A Python media downloader with YouTube URL and other yt-dlp-supported URLs support and TMDB metadata integration for organized media collections. Series-centric CLI downloader built on yt-dlp, with TMDB metadata enrichment"
 readme = "README.md"
 requires-python = ">=3.14"
