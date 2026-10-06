@@ -54,6 +54,7 @@ Notes on optional fields:
     sanitized since it becomes part of a filename.
 """
 
+import getpass
 import platform
 import re
 import shutil
@@ -202,7 +203,7 @@ class EnvManager:
         digits for SEASON before returning."""
         print("\nSeries setup (first run):\n")
         data = {
-            "TMDB_API_KEY": input("TMDB API Key:> ").strip(),
+            "TMDB_API_KEY": getpass.getpass("TMDB API Key:> ", echo_char='*').strip(),
             "SERIES": self._prompt_series_name(),
             "SERIES_ID": input("TMDB Series ID:> ").strip(),
         }
@@ -386,7 +387,7 @@ class EnvManager:
             choice = input("> ").strip()
             if choice == "1":
                 hint = " [unchanged]" if data.get("TMDB_API_KEY") else ""
-                entered = input(f"TMDB API Key{hint}:> ").strip()
+                entered = getpass.getpass(f"TMDB API Key{hint}:> ", echo_char='*').strip()
                 if entered:
                     data["TMDB_API_KEY"] = entered
             elif choice == "2":
