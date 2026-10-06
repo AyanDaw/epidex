@@ -216,13 +216,13 @@ class EnvManager:
         return data
 
     def _prompt_tool_paths(self, existing: dict | None = None) -> dict:
-        """All four entries are optional - blank input keeps whatever was
+        """All five entries are optional - blank input keeps whatever was
         already in `existing` (which may itself be blank/unset, in which
         case dependencies.py's self-healing resolves it later)."""
         existing = existing or {}
         print("\nDependency paths (optional - leave blank to keep current / auto-detect):\n")
         result = {}
-        for key, name in [("YT_DLP_PATH", "yt-dlp"), ("DENO_PATH", "deno"),
+        for key, name in [("YT_DLP_PATH", "yt-dlp"), ("FFMPEG_PATH", "ffmpeg"), ("DENO_PATH", "deno"),
                            ("MKVMERGE_PATH", "mkvmerge"), ("MKVPROPEDIT_PATH", "mkvpropedit")]:
             current = existing.get(key, "") or ""
             hint = f" [{current}]" if current else ""

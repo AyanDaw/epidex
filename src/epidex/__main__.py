@@ -9,6 +9,7 @@ REQUIRED_PACKAGES = {
     "requests": "requests",
     "dotenv": "python-dotenv",
     "rich": "rich",
+    "platformdirs": "platformdirs",
 }
 missing = [pip_name for mod, pip_name in REQUIRED_PACKAGES.items()
            if importlib.util.find_spec(mod) is None]
