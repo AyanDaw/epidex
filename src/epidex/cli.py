@@ -221,7 +221,7 @@ def _spawn_console(pyfile: ModuleType) -> subprocess.Popen | None:
     command = [sys.executable, "-m", pyfile.__name__]
     system = platform.system()
 
-    if system == "Windows":  # Windows Branch
+    if sys.platform == "win32":  # Windows Branch
         wt = shutil.which("wt")
         if wt:
             return subprocess.Popen([wt, "-w", "0", "new-tab", "-d", str(SRC), *command])
